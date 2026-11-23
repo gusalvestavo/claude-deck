@@ -5,6 +5,10 @@ Rule: every user-visible change bumps the version here **and** in the manifest
 (patch = fix/tweak, minor = new action/feature, major = breaking/UUID-level).
 Store zips are built from this version.
 
+## 2.6.1 — 2026-11-23
+
+- **Fix: Model / Effort / Clear / Compact presses silently doing nothing** — the target session was picked from every state file, so ghost sessions (Claude Desktop / headless sessions with no tty, or terminals that died without a `SessionEnd`) stayed eligible for up to 12 h. With every session `waiting`, the tie went to the first file in directory order (alphabetical session id), often a ghost; the tty lookup then failed and the press ended in a barely visible "Session terminal not found" toast. `readStates()` now keeps only sessions whose recorded tty has a live `claude` process (`ps` result cached 2 s), and `aggregateState()` breaks priority ties by most recent activity (`ts`)
+
 ## 2.6.0 — 2026-11-23
 
 - **Effort keys: Claude Effort Low / Medium / High** — three new actions, one per level. A press types `/effort low|medium|high` into the session shown on the big key, with the same guards and icon states as the Model keys (refused with a toast while a prompt is pending or the target is compacting). Colour-coded art (low = green, medium = yellow, high = amber) plus greyscale and setup-badge variants

@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'fs';
+import { execFileSync } from 'child_process';
 import { homedir } from 'os';
 import { join, basename } from 'path';
 
@@ -12,6 +13,27 @@ const DEAD_MS = 12 * 60 * 60 * 1000;     // any file this old is ignored entirel
 
 const PRIORITY = { asking: 4, attention: 3, compacting: 2, working: 1, waiting: 0 };
 
+// TTYs ('/dev/ttysNNN') with a live claude TUI on them, or null if ps failed.
+// readStates() runs every second per key, so the ps result is cached briefly.
+const LIVE_TTY_TTL_MS = 2000;
+let liveTtyCache = { at: 0, ttys: null };
+
+function liveClaudeTtys() {
+  const now = Date.now();
+  if (now - liveTtyCache.at < LIVE_TTY_TTL_MS) return liveTtyCache.ttys;
+  let ttys = null;
+  try {
+    const out = execFileSync('/bin/ps', ['-axo', 'tty=,command='], { encoding: 'utf8', timeout: 3000 });
+    ttys = new Set();
+    for (const line of out.split('\n')) {
+      const m = line.trim().match(/^(\S+)\s+(.*)$/);
+      if (m && m[1] !== '??' && /claude/.test(m[2])) ttys.add('/dev/' + m[1]);
+    }
+  } catch { /* ps unavailable — don't filter */ }
+  liveTtyCache = { at: now, ttys };
+  return ttys;
+}
+
 export function readStates() {
   let files;
   try {
@@ -21,6 +43,7 @@ export function readStates() {
     return [];
   }
   const now = Date.now();
+  const live = liveClaudeTtys();
   const states = [];
   for (const f of files) {
     try {
@@ -29,6 +52,11 @@ export function readStates() {
       s.sid = f.slice(0, -5);
       const age = now - s.ts * 1000;
       if (age > DEAD_MS) continue;
+      // Only sessions with a live claude on a terminal can receive keystrokes.
+      // Drops tty-less sessions (Claude Desktop, headless) and sessions whose
+      // terminal died without a SessionEnd — they used to win the target pick
+      // and swallow every /model, /effort, /clear and /compact press.
+      if (live && !(s.tty && live.has(s.tty))) continue;
       if ((s.state === 'working' || s.state === 'compacting' || s.state === 'asking') && age > WORKING_STALE_MS) {
         s.state = 'waiting';
       }
@@ -44,8 +72,11 @@ export function aggregateState(states, dir) {
   if (dir) list = states.filter(s => s.cwd === dir || s.cwd.startsWith(dir + '/'));
   if (!list.length) return { state: 'none', count: 0 };
   let best = list[0];
+  // highest priority wins; ties go to the most recently active session
+  // (was: first file in directory order, i.e. alphabetical by session id)
   for (const s of list) {
-    if (PRIORITY[s.state] > PRIORITY[best.state]) best = s;
+    const dp = PRIORITY[s.state] - PRIORITY[best.state];
+    if (dp > 0 || (dp === 0 && s.ts > best.ts)) best = s;
   }
   return { ...best, count: list.length };
 }
