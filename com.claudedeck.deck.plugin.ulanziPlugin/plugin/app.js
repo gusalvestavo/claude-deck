@@ -70,6 +70,9 @@ for (const [key, file] of Object.entries({
   modelsonnet: 'action-modelsonnet.png',
   modelopus: 'action-modelopus.png',
   modelfable: 'action-modelfable.png',
+  effortlow: 'action-effortlow.png',
+  effortmedium: 'action-effortmedium.png',
+  efforthigh: 'action-efforthigh.png',
 })) {
   try {
     OFFLINE_PNG[key] = 'data:image/png;base64,' + readFileSync(join(__dirname, '../resources/offline', file)).toString('base64');
@@ -87,6 +90,9 @@ for (const [key, file] of Object.entries({
   modelsonnet: 'action-modelsonnet.png',
   modelopus: 'action-modelopus.png',
   modelfable: 'action-modelfable.png',
+  effortlow: 'action-effortlow.png',
+  effortmedium: 'action-effortmedium.png',
+  efforthigh: 'action-efforthigh.png',
 })) {
   try {
     SETUP_PNG[key] = 'data:image/png;base64,' + readFileSync(join(__dirname, '../resources/setup', file)).toString('base64');
@@ -165,6 +171,9 @@ const HANDLERS = {
   [`${PLUGIN_UUID}.modelsonnet`]: () => modelPress('sonnet'),
   [`${PLUGIN_UUID}.modelopus`]: () => modelPress('opus'),
   [`${PLUGIN_UUID}.modelfable`]: () => modelPress('fable'),
+  [`${PLUGIN_UUID}.effortlow`]: () => effortPress('low'),
+  [`${PLUGIN_UUID}.effortmedium`]: () => effortPress('medium'),
+  [`${PLUGIN_UUID}.efforthigh`]: () => effortPress('high'),
   [`${PLUGIN_UUID}.sessionswitch`]: switchPress,
 };
 
@@ -339,7 +348,7 @@ async function petPress(settings) {
   }
   // nothing tracked: still open the terminal, but say why the pet is grey
   if (agg.state === 'none') $UD.toast(noSessionToast());
-  return openApp({ app: 'iTerm' });
+  return openApp({});
 }
 
 const CYCLE_ACTION = `${PLUGIN_UUID}.itermcycle`;
@@ -903,7 +912,78 @@ async function modelPress(model) {
   const out = await sendTextToTty(tty, `/model ${cfg.arg}`, true);
   if (out.trim() !== 'ok') { $UD.toast('Terminal session not found'); return; }
   log('sent /model', cfg.arg, 'to', tty);
+  // bring the terminal forward so the switch is visible; a focus failure must
+  // not turn an already-delivered /model into an error
+  try { await focusClaudeSession(best); } catch (e) { log('model focus failed', e?.message); }
   $UD.toast(`Model → ${cfg.label} (${basename(best.cwd || '') || 'session'})`);
+}
+
+// ---- Claude Effort keys (Low / Medium / High) ----------------------------
+// One key per level. A press types `/effort <level>` into the session shown on
+// the big key. Same guards and icon states as the Model keys; the art is
+// colour-coded: low = green, medium = yellow, high = amber.
+const EFFORT_KEYS = {
+  low: { arg: 'low', label: 'Low' },
+  medium: { arg: 'medium', label: 'Medium' },
+  high: { arg: 'high', label: 'High' },
+};
+const EFFORT_PNG = {};
+for (const k of Object.keys(EFFORT_KEYS)) {
+  try {
+    EFFORT_PNG[k] = 'data:image/png;base64,' + readFileSync(join(__dirname, '../resources', `action-effort${k}.png`)).toString('base64');
+  } catch { /* png missing — the key keeps the manifest icon */ }
+}
+
+function effortKeyOf(context) {
+  const uuid = ($UD.decodeContext(context) || {}).uuid || '';
+  const m = uuid.startsWith(`${PLUGIN_UUID}.effort`) ? uuid.slice(`${PLUGIN_UUID}.effort`.length) : '';
+  return EFFORT_KEYS[m] ? m : null;
+}
+
+function refreshEffortIcon(inst) {
+  try {
+    const level = effortKeyOf(inst.context);
+    if (!level) return;
+    const states = readStates();
+    let wanted;
+    if (!states.length) wanted = offlineKey();
+    else if (displayedSession(states).state === 'compacting') wanted = 'gif:bonk';
+    else wanted = 'png:effort';
+    if (wanted === inst.lastIcon) return;
+    const [kind, name] = wanted.split(':');
+    const PNGS = { offline: offlineIcon(`effort${level}`), setup: offlineIcon(`effort${level}`), effort: EFFORT_PNG[level] };
+    if (kind === 'gif' && PET_GIFS[name]) {
+      inst.lastIcon = wanted;
+      $UD.setGifDataIcon(inst.context, PET_GIFS[name]);
+    } else if (kind === 'png' && PNGS[name]) {
+      inst.lastIcon = wanted;
+      $UD.setBaseDataIcon(inst.context, PNGS[name]);
+    }
+  } catch (e) {
+    log('effort icon refresh failed', e?.message);
+  }
+}
+
+function startEffortPolling(inst) {
+  stopCyclePolling(inst);
+  refreshEffortIcon(inst);
+  inst.timer = setInterval(() => refreshEffortIcon(inst), PET_POLL_MS);
+}
+
+async function effortPress(level) {
+  const cfg = EFFORT_KEYS[level];
+  const states = readStates();
+  if (!states.length) { $UD.toast(noSessionToast()); return; }
+  const best = displayedSession(states);
+  if (promptPending(states, best)) { $UD.toast('Answer the prompt first'); return; }
+  if (best.state === 'compacting') { $UD.toast('Session is compacting — try again'); return; }
+  const tty = await claudeTtyForSession(best);
+  if (!tty) { $UD.toast('Session terminal not found'); return; }
+  const out = await sendTextToTty(tty, `/effort ${cfg.arg}`, true);
+  if (out.trim() !== 'ok') { $UD.toast('Terminal session not found'); return; }
+  log('sent /effort', cfg.arg, 'to', tty);
+  try { await focusClaudeSession(best); } catch (e) { log('effort focus failed', e?.message); }
+  $UD.toast(`Effort → ${cfg.label} (${basename(best.cwd || '') || 'session'})`);
 }
 
 const SWITCH_ACTION = `${PLUGIN_UUID}.sessionswitch`;
@@ -948,6 +1028,7 @@ function ensureInstance(context, settings) {
     if (isClear(context)) startClearPolling(inst);
     if (isSwitch(context)) startSwitchPolling(inst);
     if (modelKeyOf(context)) startModelPolling(inst);
+    if (effortKeyOf(context)) startEffortPolling(inst);
   } else if (settings && Object.keys(settings).length) {
     inst.settings = { ...settings };
   }
@@ -1078,7 +1159,7 @@ $UD.onSendToPlugin((msg) => {
   } else if (payload.cmd === 'setTerminal') {
     if (setTerminalChoice(payload.value)) {
       log('terminal choice ->', payload.value);
-      $UD.toast(`Terminal: ${payload.value === 'iterm2' ? 'iTerm2' : 'Terminal.app'}`);
+      $UD.toast(`Terminal: ${{ ghostty: 'Ghostty', iterm2: 'iTerm2' }[payload.value] || 'Terminal.app'}`);
     }
   } else if (payload.cmd === 'getSetup') {
     $UD.sendToPropertyInspector({ cmd: 'setup', ...setupSnapshot() }, msg.context);

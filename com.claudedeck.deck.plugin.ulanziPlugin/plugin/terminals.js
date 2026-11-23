@@ -131,6 +131,73 @@ const iterm2 = {
 
 };
 
+// ---- Ghostty (1.3+ AppleScript dictionary) ------------------------------
+
+function ghosttyFindTerminal(tty, body) {
+  return [
+    'tell application "Ghostty"',
+    '  repeat with t in terminals',
+    `    if tty of t is ${asQuote(tty)} then`,
+    ...body.map(l => '      ' + l),
+    '      return "ok"',
+    '    end if',
+    '  end repeat',
+    '  return "notfound"',
+    'end tell',
+  ].join('\n');
+}
+
+const ghostty = {
+  id: 'ghostty',
+  name: 'Ghostty',
+  appName: 'Ghostty',
+  asAppName: 'Ghostty',
+  installed: () => existsSync('/Applications/Ghostty.app'),
+  processName: 'ghostty',
+
+  async sessionInfo() {
+    const script = [
+      'tell application "Ghostty"',
+      '  set t to count of windows',
+      '  if t = 0 then return "0|||0|||no windows"',
+      '  set cw to front window',
+      '  set i to 0',
+      '  set idx to 0',
+      '  repeat with w in windows',
+      '    set i to i + 1',
+      '    if id of w = id of cw then set idx to i',
+      '  end repeat',
+      '  return (t as text) & "|||" & (idx as text) & "|||" & (name of cw)',
+      'end tell',
+    ].join('\n');
+    return osascript(script);
+  },
+
+  focusByTtyScript(tty) {
+    return ghosttyFindTerminal(tty, ['focus t']).replace(
+      'tell application "Ghostty"\n', 'tell application "Ghostty"\n  activate\n');
+  },
+
+  sendByTtyScript(tty, text, newline) {
+    const body = [];
+    if (text !== '') body.push(`input text ${asQuote(text)} to t`);
+    if (newline || text === '') body.push('send key "enter" to t');
+    return ghosttyFindTerminal(tty, body);
+  },
+
+  // One keypress per call (Ink drops extra keys sharing a write).
+  sendKeyByTtyScript(tty, key) {
+    const line = {
+      'down': 'send key "down" to t',
+      'up': 'send key "up" to t',
+      'tab': 'send key "tab" to t',
+      'shift-tab': 'send key "tab" modifiers "shift" to t',
+    }[key];
+    if (!line) return null;
+    return ghosttyFindTerminal(tty, [line]);
+  },
+};
+
 // ---- Terminal.app -------------------------------------------------------
 
 const terminalApp = {
@@ -191,7 +258,7 @@ const terminalApp = {
 
 };
 
-const ADAPTERS = { iterm2, terminal: terminalApp };
+const ADAPTERS = { ghostty, iterm2, terminal: terminalApp };
 
 export function detectTerminals() {
   return Object.values(ADAPTERS)
@@ -204,6 +271,7 @@ export function getTerminalChoice() {
     const id = readFileSync(CHOICE_FILE, 'utf8').trim();
     if (ADAPTERS[id] && ADAPTERS[id].installed()) return id;
   } catch { /* default below */ }
+  if (ADAPTERS.ghostty.installed()) return 'ghostty';
   return ADAPTERS.iterm2.installed() ? 'iterm2' : 'terminal';
 }
 

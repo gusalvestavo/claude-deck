@@ -45,6 +45,18 @@
     {
       "Name": "Claude Model Fable",
       "Tooltip": "Switch the top Claude session to Fable (types /model fable). Grey icon = no Claude Code session detected."
+    },
+    {
+      "Name": "Claude Effort Low",
+      "Tooltip": "Set the top Claude session's effort to Low (types /effort low). Grey icon = no Claude Code session detected."
+    },
+    {
+      "Name": "Claude Effort Medium",
+      "Tooltip": "Set the top Claude session's effort to Medium (types /effort medium). Grey icon = no Claude Code session detected."
+    },
+    {
+      "Name": "Claude Effort High",
+      "Tooltip": "Set the top Claude session's effort to High (types /effort high). Grey icon = no Claude Code session detected."
     }
   ],
   "Localization": {

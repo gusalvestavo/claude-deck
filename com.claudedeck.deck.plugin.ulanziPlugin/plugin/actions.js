@@ -73,7 +73,7 @@ export function sendTextToTty(tty, text, newline) {
 }
 
 
-// Whether the active terminal can inject navigation keys (iTerm2 only).
+// Whether the active terminal can inject navigation keys (Ghostty and iTerm2).
 export function canSendKeys() {
   return typeof adapter().sendKeyByTtyScript === 'function';
 }

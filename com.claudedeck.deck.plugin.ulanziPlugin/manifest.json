@@ -4,7 +4,7 @@
   "Description": "Claude Code on the Ulanzi Deck: live status pet, answer questions from the deck, and a big-screen session display.",
   "Overview": "See and control every Claude Code session from your Ulanzi Deck.",
   "Author": "Antonio González",
-  "Version": "2.5.0",
+  "Version": "2.6.0",
   "Icon": "resources/icon.png",
   "Banner": [
     "resources/banners/banner-1.png",
@@ -189,6 +189,54 @@
         {
           "Name": "Claude Model Fable",
           "Image": "resources/action-modelfable.png"
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Claude Effort Low",
+      "Tooltip": "Set the top Claude session's effort to Low (types /effort low). Grey icon = no Claude Code session detected.",
+      "Icon": "resources/action-effortlow.png",
+      "UUID": "com.claudedeck.deck.plugin.effortlow",
+      "States": [
+        {
+          "Name": "Claude Effort Low",
+          "Image": "resources/action-effortlow.png"
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Claude Effort Medium",
+      "Tooltip": "Set the top Claude session's effort to Medium (types /effort medium). Grey icon = no Claude Code session detected.",
+      "Icon": "resources/action-effortmedium.png",
+      "UUID": "com.claudedeck.deck.plugin.effortmedium",
+      "States": [
+        {
+          "Name": "Claude Effort Medium",
+          "Image": "resources/action-effortmedium.png"
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Claude Effort High",
+      "Tooltip": "Set the top Claude session's effort to High (types /effort high). Grey icon = no Claude Code session detected.",
+      "Icon": "resources/action-efforthigh.png",
+      "UUID": "com.claudedeck.deck.plugin.efforthigh",
+      "States": [
+        {
+          "Name": "Claude Effort High",
+          "Image": "resources/action-efforthigh.png"
         }
       ],
       "SupportedInMultiActions": false,

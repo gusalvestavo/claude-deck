@@ -5,6 +5,12 @@ Rule: every user-visible change bumps the version here **and** in the manifest
 (patch = fix/tweak, minor = new action/feature, major = breaking/UUID-level).
 Store zips are built from this version.
 
+## 2.6.0 — 2026-11-23
+
+- **Effort keys: Claude Effort Low / Medium / High** — three new actions, one per level. A press types `/effort low|medium|high` into the session shown on the big key, with the same guards and icon states as the Model keys (refused with a toast while a prompt is pending or the target is compacting). Colour-coded art (low = green, medium = yellow, high = amber) plus greyscale and setup-badge variants
+- **Ghostty support** — new terminal adapter (Ghostty 1.3+ AppleScript dictionary) for focusing, typing into and sending navigation keys to a session by tty. Ghostty is the default when installed; the setup panel shows it as the active terminal
+- Model keys bring the target terminal forward after `/model` is delivered; the terminal key opens the chosen terminal instead of always iTerm
+
 ## 2.5.0 — 2026-11-17
 
 - **Model keys: Claude Model Sonnet / Opus / Fable** — three new actions, one per model. A press types `/model sonnet|opus|fable` into the session shown on the big key. No confirm step (switching model is cheap and reversible, unlike `/clear`). Refused with a toast while a question / permission prompt is pending or while the target session is compacting (bonk GIF then), same guards as Compact / Clear. Each key has its own coloured icon, plus the greyscale and setup-badge variants (`resources/`, `resources/offline/`, `resources/setup/`). The `/model` argument is an alias that tracks the latest release of each family; pin a full model ID in `MODEL_KEYS` (`plugin/app.js`) if needed

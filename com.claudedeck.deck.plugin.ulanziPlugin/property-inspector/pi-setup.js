@@ -76,7 +76,7 @@
       unchecked: ['warn', t('row_terminal_unchecked', 'not checked yet')],
     };
     var a = ACCESS[access] || ['warn', String(access)];
-    rows.appendChild(row(a[0], t('row_terminal', 'Terminal control'), a[1] + ' · ' + ((p.terminal || {}).choice === 'iterm2' ? 'iTerm2' : 'Terminal.app')));
+    rows.appendChild(row(a[0], t('row_terminal', 'Terminal control'), a[1] + ' · ' + ({ ghostty: 'Ghostty', iterm2: 'iTerm2' }[(p.terminal || {}).choice] || 'Terminal.app')));
 
     // 4. the big screen
     var big = p.bigkey || {};
